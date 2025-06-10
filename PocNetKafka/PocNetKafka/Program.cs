@@ -1,6 +1,7 @@
 ﻿using Confluent.Kafka;
 using System;
 using System.Text;
+using System.Text.Json;
 
 namespace PocNetKafka
 {
@@ -34,11 +35,22 @@ namespace PocNetKafka
 
             while (true)
             {
-                Console.Write("Digite a mensagem (ou 'sair'): ");
+                var produto = new Product();
+                produto.Id = 1;
+
+                Console.Write("Digite o nome do produto (ou sair): ");
                 string input = Console.ReadLine();
                 if (input?.ToLower() == "sair") break;
 
-                var result = await producer.ProduceAsync(topic, new Message<Null, string> { Value = input });
+                produto.Name = input;
+
+                Console.Write("Digite o valor do produto (ou 'sair'): ");
+                input = Console.ReadLine();
+                if (input?.ToLower() == "sair") break;
+
+                produto.Price = Double.Parse(input);
+
+                var result = await producer.ProduceAsync(topic, new Message<Null, string> { Value = JsonSerializer.Serialize(produto) });
 
                 Console.WriteLine($"[✔] Enviado para {result.TopicPartitionOffset}");
             }
@@ -71,7 +83,8 @@ namespace PocNetKafka
                 while (!cts.Token.IsCancellationRequested)
                 {
                     var cr = consumer.Consume(cts.Token);
-                    Console.WriteLine($"[✔] Mensagem recebida: {cr.Message.Value}");
+                    var produto = JsonSerializer.Deserialize<Product>(cr.Message.Value);
+                    Console.WriteLine($"[✔] Mensagem recebida: {produto.Name + " " + produto.Price.ToString("N2")}");
                 }
             }
             catch (OperationCanceledException)
